@@ -85,6 +85,7 @@ type (
 		authResponse   chan<- packets.ControlPacket
 		stop           chan struct{}
 		done           chan struct{} // closed when shutdown complete (only valid after Connect returns nil error)
+		exit           bool
 		publishPackets chan *packets.Publish
 		acksTracker    acksTracker
 		workers        sync.WaitGroup
@@ -152,6 +153,7 @@ func NewClient(conf ClientConfig) *Client {
 		},
 		ClientConfig: conf,
 		done:         make(chan struct{}),
+		exit:         false,
 		errors:       log.NOOPLogger{},
 		debug:        log.NOOPLogger{},
 	}
@@ -524,6 +526,13 @@ func (c *Client) close() {
 	c.workers.Wait()
 	c.debug.Println("workers done")
 	close(c.done)
+	// NOTE: We have a separate bool to keep track of disconnect state since
+	// the DISCONNECT packet from the MQTT broker is shared between disconnects
+	// requested by the client, and disconnects requested by the broker.
+	if c.exit {
+		c.debug.Println("user called disconnect - close normally")
+		return
+	}
 	c.mu.Unlock() // can't defer since reconnect requires close to finish
 
 	// if reconnect is enabled, start the reconnect process
@@ -940,6 +949,12 @@ func (c *Client) expectConnack(packet chan<- *packets.Connack, errs chan<- error
 func (c *Client) Disconnect(d *Disconnect) error {
 	c.debug.Println("disconnecting", d)
 	_, err := d.Packet().WriteTo(c.Conn)
+
+	// If we receive a proper disconnect request from the user, do not
+	// attempt to reconnect.
+	c.mu.Lock()
+	c.exit = true
+	c.mu.Unlock()
 
 	c.close()
 
