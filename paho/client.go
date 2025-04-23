@@ -1045,7 +1045,7 @@ func (c *Client) reconnect() error {
 							_, err = c.Unsubscribe(context.Background(), sub.Unsubscribed)
 						}
 						if err != nil {
-							c.errors.Println("error re-subscribing to topics:", err)
+							// Do nothing, this error message spams our logs
 						}
 					}
 				}
