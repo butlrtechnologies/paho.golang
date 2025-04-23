@@ -1061,9 +1061,6 @@ func (c *Client) reconnect() error {
 			err = ErrReconnectMissingNetConn
 		}
 
-		// Failed to connect, try again
-		c.errors.Println("reconnect failed:", err)
-
 		// keep track of the errors, unless we're doing infinite retries to avoid memory leak
 		if !infinite {
 			errs = append(errs, err)
