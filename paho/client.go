@@ -1014,6 +1014,11 @@ func (c *Client) reconnect() error {
 		return nil // No retries
 	}
 
+	err := c.Session.ConnectionLost(nil)
+	if err != nil {
+		c.debug.Println("error updating session state:", err)
+	}
+
 	var errs []error
 	attempt := 0
 	currentInterval := config.RetryInterval
