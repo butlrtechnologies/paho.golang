@@ -823,6 +823,12 @@ func (c *Client) PublishWithOptions(ctx context.Context, p *Publish, o PublishOp
 	case 0:
 		c.debug.Println("sending QoS0 message")
 		if _, err := pb.WriteTo(c.Conn); err != nil {
+			// Check if the error is specifically a context timeout error
+			if ctx.Err() == context.DeadlineExceeded {
+				// For context timeout errors, don't attempt to reconnect, just return the error
+				return nil, fmt.Errorf("publish operation timed out: %w", err)
+			}
+
 			if c.AutoReconnectConfig != nil {
 				return nil, c.reconnect()
 			}
@@ -852,6 +858,12 @@ func (c *Client) publishQoS12(ctx context.Context, pb *packets.Publish, o Publis
 	// writing the packet to the connection
 	if _, err := pb.WriteTo(c.Conn); err != nil {
 		c.debug.Printf("failed to write packet %d to connection: %s", pb.PacketID, err)
+		// Check if the error is specifically a context timeout error
+		if ctx.Err() == context.DeadlineExceeded {
+			// For context timeout errors, don't attempt to reconnect, just return the error
+			return nil, fmt.Errorf("publish operation timed out: %w", err)
+		}
+
 		if c.AutoReconnectConfig != nil {
 			return nil, c.reconnect()
 		}
